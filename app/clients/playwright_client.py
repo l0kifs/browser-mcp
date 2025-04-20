@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
 from typing import Dict, List, Any, Literal, Union, Optional
-from playwright.sync_api import sync_playwright, Page, ElementHandle, Locator
+from playwright.async_api import async_playwright, Page, ElementHandle, Locator
 
 
 class PlaywrightClient:
@@ -18,23 +18,12 @@ class PlaywrightClient:
         self._record_trace = record_trace
         self._trace_path = trace_path if trace_path else self._set_default_trace_path()
 
-        self._playwright = sync_playwright()
+        self._playwright = None
         self._browser = None
         self._context = None
         self._page = None
         self._console_logs = []
         self._network_requests = []
-
-    def _install_dependencies_and_browser(self):
-        result = subprocess.run(
-            ["playwright", "install", "--with-deps", "chromium"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Failed to install Playwright dependencies: {result.stderr}"
-            )
 
     def _set_default_trace_path(self):
         current_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
@@ -51,16 +40,15 @@ class PlaywrightClient:
     def get_page(self):
         return self._page
 
-    def start(self):
-        self._install_dependencies_and_browser()
-        self._playwright = self._playwright.start()
-        self._browser = self._playwright.chromium.launch(
+    async def start(self):
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.launch(
             headless=self._browser_headless, slow_mo=self._slow_mo
         )
-        self._context = self._browser.new_context()
+        self._context = await self._browser.new_context()
         if self._record_trace:
-            self._context.tracing.start(screenshots=True, snapshots=True, sources=True)
-        self._page = self._context.new_page()
+            await self._context.tracing.start(screenshots=True, snapshots=True, sources=True)
+        self._page = await self._context.new_page()
 
         # Setup console log listener
         self._console_logs = []
@@ -91,22 +79,22 @@ class PlaywrightClient:
             ),
         )
 
-    def stop(self):
+    async def stop(self):
         if self._record_trace:
-            self._context.tracing.stop(path=self._trace_path)
-        self._browser.close()
-        self._playwright.stop()
+            await self._context.tracing.stop(path=self._trace_path)
+        await self._browser.close()
+        await self._playwright.stop()
 
-    def explore_page_dom(self):
+    async def explore_page_dom(self):
         """Returns the HTML structure of the current page"""
-        return self._page.content()
+        return await self._page.content()
 
-    def explore_element_dom(self, selector: str):
+    async def explore_element_dom(self, selector: str):
         """Returns the HTML structure of the element identified by the selector."""
-        element = self._page.query_selector(selector)
-        return element.inner_html() if element else ""
+        element = await self._page.query_selector(selector)
+        return await element.inner_html() if element else ""
 
-    def wait_for_element(
+    async def wait_for_element(
         self,
         selector: str,
         state: Literal["visible", "hidden", "attached", "detached"] = None,
@@ -122,9 +110,9 @@ class PlaywrightClient:
         Returns:
             ElementHandle of the found element
         """
-        return self._page.wait_for_selector(selector, timeout=timeout, state=state)
+        return await self._page.wait_for_selector(selector, timeout=timeout, state=state)
 
-    def find_elements(self, selector: str) -> List[ElementHandle]:
+    async def find_elements(self, selector: str) -> List[ElementHandle]:
         """Finds elements on the page using the specified selector.
 
         Args:
@@ -133,18 +121,18 @@ class PlaywrightClient:
         Returns:
             List of found elements
         """
-        return self._page.query_selector_all(selector)
+        return await self._page.query_selector_all(selector)
 
-    def click_on_element(self, selector: str, timeout: int = 30000):
+    async def click_on_element(self, selector: str, timeout: int = 30000):
         """Clicks on an element identified by the selector.
 
         Args:
             selector: CSS or XPath selector
             timeout: Maximum time to wait for the element in milliseconds
         """
-        self._page.click(selector, timeout=timeout)
+        await self._page.click(selector, timeout=timeout)
 
-    def get_element_text_content(self, selector: str, timeout: int = 30000) -> str:
+    async def get_element_text_content(self, selector: str, timeout: int = 30000) -> str:
         """Gets the text content of an element.
 
         Args:
@@ -154,10 +142,10 @@ class PlaywrightClient:
         Returns:
             Text content of the element
         """
-        element = self._page.wait_for_selector(selector, timeout=timeout)
-        return element.text_content() if element else ""
+        element = await self._page.wait_for_selector(selector, timeout=timeout)
+        return await element.text_content() if element else ""
 
-    def fill_input(self, selector: str, value: str, timeout: int = 30000):
+    async def fill_input(self, selector: str, value: str, timeout: int = 30000):
         """Fills an input field with text.
 
         Args:
@@ -165,9 +153,9 @@ class PlaywrightClient:
             value: Text to input
             timeout: Maximum time to wait for the element in milliseconds
         """
-        self._page.fill(selector, value, timeout=timeout)
+        await self._page.fill(selector, value, timeout=timeout)
 
-    def execute_js(self, script: str, arg: Any = None):
+    async def execute_js(self, script: str, arg: Any = None):
         """Executes JavaScript code and returns the result.
 
         Args:
@@ -177,9 +165,9 @@ class PlaywrightClient:
         Returns:
             Result of the JavaScript execution
         """
-        return self._page.evaluate(script, arg)
+        return await self._page.evaluate(script, arg)
 
-    def get_console_logs(
+    async def get_console_logs(
         self,
         limit: int = 50,
         offset: int = 0,
@@ -217,7 +205,7 @@ class PlaywrightClient:
 
         return paginated_logs
 
-    def get_network_requests(
+    async def get_network_requests(
         self,
         limit: int = 50,
         offset: int = 0,
@@ -264,3 +252,28 @@ class PlaywrightClient:
         paginated_requests = sorted_requests[offset : offset + limit]
 
         return paginated_requests
+
+    async def press_key(self, key: str):
+        """Sends a keyboard key press event to the page.
+        
+        Args:
+            key: Key to press, such as 'Enter', 'a', 'ArrowLeft', etc.
+               For modifier keys, use format like 'Control+c', 'Shift+ArrowRight', 'Alt+Enter'
+        """
+        if '+' in key:
+            # Handle key combinations like 'Control+c' or 'Shift+ArrowRight'
+            parts = key.split('+')
+            modifier = parts[0]
+            key_to_press = parts[1]
+            await self._page.keyboard.press(key_to_press, modifiers=[modifier])
+        else:
+            # Handle single key press
+            await self._page.keyboard.press(key)
+
+
+# import time
+# client = PlaywrightClient(browser_headless=False)
+# client.start()
+# client.get_page().goto("https://www.google.com")
+# time.sleep(10)
+# client.stop()

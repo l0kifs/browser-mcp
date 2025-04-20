@@ -18,19 +18,20 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
     # Initialize on startup
     playwright_client = PlaywrightClient(browser_headless=False)
-    playwright_client.start()
+    await playwright_client.start()
     try:
         yield AppContext(playwright_client=playwright_client)
     finally:
         # Cleanup on shutdown
-        playwright_client.stop()
+        await playwright_client.stop()
 
 
 mcp = FastMCP("Browser MCP", lifespan=app_lifespan)
+# mcp = FastMCP("Browser MCP")
 
 
 @mcp.tool()
-def navigate_to_url(ctx: Context, url: str) -> str:
+async def navigate_to_url(ctx: Context, url: str) -> str:
     """Navigate to a specific URL in the browser.
     
     Used to load web pages for interaction or analysis.
@@ -44,12 +45,12 @@ def navigate_to_url(ctx: Context, url: str) -> str:
             Example: "Navigated to https://www.example.com"
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    playwright_client.get_page().goto(url)
+    await playwright_client.get_page().goto(url)
     return f"Navigated to {url}"
 
 
 @mcp.tool()
-def explore_page_dom(ctx: Context) -> str:
+async def explore_page_dom(ctx: Context) -> str:
     """Retrieve the complete HTML structure of the current page.
     
     Used for analyzing page structure, debugging, or extracting information not easily accessible 
@@ -63,11 +64,11 @@ def explore_page_dom(ctx: Context) -> str:
             Example: "<!DOCTYPE html><html><head>...</head><body>...</body></html>"
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.explore_page_dom()
+    return await playwright_client.explore_page_dom()
 
 
 @mcp.tool()
-def explore_element_dom(ctx: Context, selector: str) -> str:
+async def explore_element_dom(ctx: Context, selector: str) -> str:
     """Retrieve the HTML structure of a specific element on the page.
     
     Useful for examining a particular component or section of a page without the surrounding HTML.
@@ -81,11 +82,11 @@ def explore_element_dom(ctx: Context, selector: str) -> str:
             Example: "<div class='item'>Product details</div><button>Add to cart</button>"
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.explore_element_dom(selector)
+    return await playwright_client.explore_element_dom(selector)
 
 
 @mcp.tool()
-def wait_for_element(
+async def wait_for_element(
     ctx: Context,
     selector: str,
     state: Literal["visible", "hidden", "attached", "detached"] = None,
@@ -114,12 +115,12 @@ def wait_for_element(
         bool: True if the element reached the desired state within the timeout period, False otherwise.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    element = playwright_client.wait_for_element(selector, state, timeout)
+    element = await playwright_client.wait_for_element(selector, state, timeout)
     return element is not None
 
 
 @mcp.tool()
-def find_elements(ctx: Context, selector: str) -> List[Dict]:
+async def find_elements(ctx: Context, selector: str) -> List[Dict]:
     """Find all elements on the page matching a selector and return their content.
     
     Useful for collecting multiple items, like products in a list, table rows, or menu items.
@@ -140,13 +141,18 @@ def find_elements(ctx: Context, selector: str) -> List[Dict]:
             Returns an empty list if no elements are found.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    elements = playwright_client.find_elements(selector)
+    elements = await playwright_client.find_elements(selector)
     # Convert ElementHandles to serializable dictionaries
-    return [{"text": el.text_content(), "html": el.inner_html()} for el in elements]
+    result = []
+    for el in elements:
+        text = await el.text_content()
+        html = await el.inner_html()
+        result.append({"text": text, "html": html})
+    return result
 
 
 @mcp.tool()
-def click_on_element(ctx: Context, selector: str, timeout: int = 30000) -> bool:
+async def click_on_element(ctx: Context, selector: str, timeout: int = 30000) -> bool:
     """Click on an element on the page.
     
     Used for interacting with buttons, links, checkboxes, radio buttons, 
@@ -165,14 +171,14 @@ def click_on_element(ctx: Context, selector: str, timeout: int = 30000) -> bool:
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
     try:
-        playwright_client.click_on_element(selector, timeout)
+        await playwright_client.click_on_element(selector, timeout)
         return True
     except Exception as e:
         return False
 
 
 @mcp.tool()
-def get_element_text_content(ctx: Context, selector: str, timeout: int = 30000) -> str:
+async def get_element_text_content(ctx: Context, selector: str, timeout: int = 30000) -> str:
     """Get the text content of a specific element on the page.
     
     Useful for extracting visible text from headings, paragraphs, labels, or any other elements.
@@ -190,11 +196,11 @@ def get_element_text_content(ctx: Context, selector: str, timeout: int = 30000) 
             Example: "Welcome to our website", "Error: Invalid credentials"
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.get_element_text_content(selector, timeout)
+    return await playwright_client.get_element_text_content(selector, timeout)
 
 
 @mcp.tool()
-def fill_input(ctx: Context, selector: str, value: str, timeout: int = 30000) -> bool:
+async def fill_input(ctx: Context, selector: str, value: str, timeout: int = 30000) -> bool:
     """Fill a form input field with text.
     
     Used for entering text into input fields, textareas, or any editable element.
@@ -216,14 +222,14 @@ def fill_input(ctx: Context, selector: str, value: str, timeout: int = 30000) ->
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
     try:
-        playwright_client.fill_input(selector, value, timeout)
+        await playwright_client.fill_input(selector, value, timeout)
         return True
     except Exception as e:
         return False
 
 
 @mcp.tool()
-def execute_js(ctx: Context, script: str, arg: Any = None) -> Any:
+async def execute_js(ctx: Context, script: str, arg: Any = None) -> Any:
     """Execute JavaScript code on the page and return the result.
     
     Used for advanced interactions, data extraction, or manipulations not possible with standard tools.
@@ -248,11 +254,11 @@ def execute_js(ctx: Context, script: str, arg: Any = None) -> Any:
             Example: "Page Title", ["$10.99", "$24.99"], {"userId": 123, "name": "John"}
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.execute_js(script, arg)
+    return await playwright_client.execute_js(script, arg)
 
 
 @mcp.tool()
-def get_console_logs(
+async def get_console_logs(
     ctx: Context,
     limit: int = 50,
     offset: int = 0,
@@ -303,11 +309,11 @@ def get_console_logs(
             Returns an empty list if no logs match the criteria.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.get_console_logs(limit, offset, time_from, time_to)
+    return await playwright_client.get_console_logs(limit, offset, time_from, time_to)
 
 
 @mcp.tool()
-def get_network_requests(
+async def get_network_requests(
     ctx: Context,
     limit: int = 50,
     offset: int = 0,
@@ -369,7 +375,36 @@ def get_network_requests(
             Returns an empty list if no requests match the criteria.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return playwright_client.get_network_requests(limit, offset, time_from, time_to, resource_type)
+    return await playwright_client.get_network_requests(
+        limit, offset, time_from, time_to, resource_type
+    )
+
+
+@mcp.tool()
+async def press_key(ctx: Context, key: str) -> bool:
+    """Send a keyboard key press event to the current page.
+    
+    Used for simulating keyboard interactions like pressing Enter, arrow keys,
+    or keyboard shortcuts such as Ctrl+C.
+    
+    Args:
+        key (str): The key or key combination to press.
+            For single keys: "Enter", "Tab", "a", "1", "ArrowLeft", "Escape", etc.
+            For key combinations: "Control+c", "Shift+ArrowRight", "Alt+Enter", etc.
+            
+            Example: "Enter" (press Enter key)
+                     "Control+a" (select all text)
+                     "Escape" (press Escape key)
+    
+    Returns:
+        bool: True if the key press was successful, False otherwise.
+    """
+    playwright_client = ctx.request_context.lifespan_context.playwright_client
+    try:
+        await playwright_client.press_key(key)
+        return True
+    except Exception as e:
+        return False
 
 
 if __name__ == "__main__":

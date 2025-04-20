@@ -15,3 +15,6 @@ dev = [
     "pytest-mock",
     "pytest-cov"
 ]
+
+[project.scripts]
+setup-playwright = "playwright install --with-deps chromium"
