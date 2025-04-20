@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## description
+Use the specified Python technology stack strictly for all Python project developments.
+Any deviations or additions should be explicitly justified and approved.
+
+## stack
+- http_communication: httpx
+- logging: loguru
+- data_validation: pydantic
+- configuration_management: pydantic-settings
+- testing_framework: pytest
+- test_coverage: pytest-cov
+- linting_formatting: ruff
+- static_type_checking: mypy
+- model_context_protocol: mcp
+- dependency_project_management: uv
+
+## implementation_guidelines
+- Always start project setup with uv for dependency and project management.
+- Use httpx for all HTTP requests, including external API interactions.
+- Employ loguru for structured, informative, and leveled logging.
+- Validate all data models and payloads strictly using pydantic.
+- Configuration should be centralized and managed via pydantic-settings.
+- All functional and integration logic must be covered with pytest tests.
+- Maintain a minimum of 90% test coverage reported by pytest-cov.
+- Adhere to code quality standards enforced by ruff.
+- Ensure type correctness and clarity by passing mypy static checks.
+- Integrate Model Context Protocol (mcp) appropriately for context handling.
+
+## compliance
+- Any deviation from this stack must include documented rationale and be subject to review and approval.

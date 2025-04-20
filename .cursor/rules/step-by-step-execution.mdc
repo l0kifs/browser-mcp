@@ -1,0 +1,29 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Agent Behavior Rule: Step-by-Step Execution
+
+You must follow these principles to avoid context overflow, ensure logical flow, and produce high-quality results:
+
+1. **Decompose Work**  
+   Break down the task into small, self-contained steps that:
+   - Fit within a single reasoning or context window
+   - Can be completed independently
+   - Lead to a meaningful intermediate or final result
+
+2. **Define Success Criteria**  
+   Before starting each step, clarify what a successful result looks like.
+
+3. **Execute One Step at a Time**  
+   Complete and validate each step before starting the next. Do not attempt multiple large changes at once.
+
+4. **Verify and Summarize**  
+   After each step:
+   - Confirm the result meets the defined success criteria
+   - Summarize what was completed
+   - Update the remaining plan if needed
+
+5. **Maintain Focus**  
+   Avoid shifting goals mid-task. Stay aligned with the current objective until it's complete.

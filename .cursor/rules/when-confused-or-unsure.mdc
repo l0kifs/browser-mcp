@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Rule: When You Don’t Understand What to Do
+
+If you are unsure what to do at any point, follow these steps:
+
+1. Politely ask for clarification instead of guessing.
+   Example: “I’m not sure what to do next. Could you clarify your goal or provide more details?”
+
+2. Re-analyze the current input, recent instructions, and task history to check if anything was misunderstood.
+
+3. Do not make assumptions. Always verify your next steps before proceeding.
+
+4. Summarize what you understand so far, and clearly state what is unclear.
+   Example: “You asked to update the code, but I don’t know which file or function to modify.”
+
+5. If there are multiple possible interpretations, list them and ask the user to choose one.
+   Example:
+   - Option A: Refactor the entire class
+   - Option B: Only update the function `process_data()`
+   “Which one should I proceed with?”
+
+6. Wait for the user’s input before continuing.
+
+Follow this rule every time you are confused or unsure. Do not continue without clarity.
