@@ -80,10 +80,37 @@ class PlaywrightClient:
         )
 
     async def stop(self):
-        if self._record_trace:
-            await self._context.tracing.stop(path=self._trace_path)
-        await self._browser.close()
-        await self._playwright.stop()
+        """Properly clean up all Playwright resources"""
+        try:
+            if self._record_trace and self._context:
+                await self._context.tracing.stop(path=self._trace_path)
+            
+            # Close page first if it exists
+            if self._page:
+                await self._page.close()
+                self._page = None
+                
+            # Close context if it exists
+            if self._context:
+                await self._context.close()
+                self._context = None
+                
+            # Close browser if it exists
+            if self._browser:
+                await self._browser.close()
+                self._browser = None
+                
+            # Stop Playwright if it exists
+            if self._playwright:
+                await self._playwright.stop()
+                self._playwright = None
+                
+            # Clear collected data
+            self._console_logs = []
+            self._network_requests = []
+        except Exception as e:
+            print(f"Error during Playwright cleanup: {e}")
+            # Continue with cleanup despite errors
 
     async def explore_page_dom(self):
         """Returns the HTML structure of the current page"""

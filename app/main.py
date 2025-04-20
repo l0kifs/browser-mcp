@@ -16,7 +16,6 @@ class AppContext:
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
-    # Initialize on startup
     playwright_client = PlaywrightClient(browser_headless=False)
     await playwright_client.start()
     try:
@@ -27,7 +26,6 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 
 mcp = FastMCP("Browser MCP", lifespan=app_lifespan)
-# mcp = FastMCP("Browser MCP")
 
 
 @mcp.tool()
