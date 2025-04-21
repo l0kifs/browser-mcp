@@ -29,6 +29,21 @@ mcp = FastMCP("Browser MCP", lifespan=app_lifespan)
 
 
 @mcp.tool()
+async def restart_browser(ctx: Context) -> str:
+    """Restart the browser.
+    
+    Used to restart the browser in case of unexpected issues.
+    
+    Returns:
+        str: A confirmation message that the browser was restarted.
+    """
+    playwright_client = ctx.request_context.lifespan_context.playwright_client
+    await playwright_client.stop()
+    await playwright_client.start()
+    return "Browser restarted"
+
+
+@mcp.tool()
 async def navigate_to_url(ctx: Context, url: str) -> str:
     """Navigate to a specific URL in the browser.
     
@@ -271,6 +286,20 @@ async def fill_input(ctx: Context, selector: str, value: str, timeout: int = 300
         return True
     except Exception as e:
         return False
+    
+
+@mcp.tool()
+async def reload_page(ctx: Context) -> str:
+    """Reload the current page.
+    
+    Used to refresh the page content or re-fetch data.
+    
+    Returns:
+        str: A confirmation message that the page was reloaded.
+    """
+    playwright_client = ctx.request_context.lifespan_context.playwright_client
+    await playwright_client.reload_page()
+    return "Page reloaded"
 
 
 @mcp.tool()

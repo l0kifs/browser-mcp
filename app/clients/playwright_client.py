@@ -301,6 +301,10 @@ class PlaywrightClient:
         """
         await self._page.fill(selector, value, timeout=timeout)
 
+    async def reload_page(self):
+        """Reloads the current page."""
+        await self._page.reload()
+
     async def execute_js(self, script: str, arg: Any = None):
         """Executes JavaScript code and returns the result.
 
