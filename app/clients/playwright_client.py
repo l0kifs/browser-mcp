@@ -111,15 +111,124 @@ class PlaywrightClient:
         except Exception as e:
             print(f"Error during Playwright cleanup: {e}")
             # Continue with cleanup despite errors
+    
+    async def _get_css_selector(self, element: ElementHandle) -> str:
+        return await element.evaluate("""
+            (el) => {
+                // Check if this is an element node
+                if (el.nodeType !== Node.ELEMENT_NODE) {
+                    return "[non-element-node]";
+                }
+                
+                if (el.id) return `#${el.id}`;
+                const path = [];
+                while (el && el.nodeType === Node.ELEMENT_NODE) {
+                    let selector = el.nodeName.toLowerCase();
+                    if (el.className && typeof el.className === 'string') {
+                        const classes = el.className.trim().split(/\\s+/).join(".");
+                        selector += "." + classes;
+                    }
+                    const siblingIndex = Array.from(el.parentNode?.children || []).indexOf(el) + 1;
+                    selector += `:nth-child(${siblingIndex})`;
+                    path.unshift(selector);
+                    el = el.parentElement;
+                }
+                return path.join(" > ");
+            }
+        """)
+    
+    async def _summarize_element(
+        self, 
+        element: ElementHandle, 
+        depth: int = 0, 
+        visible_only: bool = True, 
+        max_depth: int = 10, 
+        max_children: int = 10
+    ) -> Optional[Dict]:
+        if depth > max_depth:
+            return None
 
-    async def explore_page_dom(self):
+        if visible_only:
+            is_visible = await element.is_visible()
+            if not is_visible:
+                return None
+
+        # Check if element is a valid HTML element before using inner_text
+        is_html_element = await element.evaluate("""
+            (el) => {
+                return el.nodeType === Node.ELEMENT_NODE;
+            }
+        """)
+        
+        tag = await element.evaluate("el => el.tagName ? el.tagName.toLowerCase() : el.nodeName.toLowerCase()")
+        
+        # Only get inner_text for HTML elements
+        text = ""
+        if is_html_element:
+            try:
+                text = await element.inner_text()
+                text = text.strip()
+                if len(text) > 80:
+                    text = text[:77] + "..."
+            except Exception:
+                # Fallback to textContent if inner_text fails
+                text_content = await element.evaluate("el => el.textContent || ''")
+                text = text_content.strip()
+                if len(text) > 80:
+                    text = text[:77] + "..."
+        
+        attrs = await element.evaluate("""
+            (el) => {
+                if (el.nodeType !== Node.ELEMENT_NODE) return { id: '', class: '', type: undefined };
+                return { id: el.id || '', class: el.className || '', type: el.type || undefined };
+            }
+        """)
+        selector = await self._get_css_selector(element)
+
+        summary = {
+            "tag": tag,
+            "text": text,
+            "id": attrs.get("id"),
+            "class": attrs.get("class"),
+            "type": attrs.get("type"),
+            "selector": selector,
+            "children": []
+        }
+
+        children = await element.query_selector_all(":scope > *")
+        for child in children[:max_children]:
+            child_summary = await self._summarize_element(child, depth + 1, visible_only=visible_only, max_depth=max_depth, max_children=max_children)
+            if child_summary:
+                summary["children"].append(child_summary)
+
+        return summary
+    
+    async def navigate_to_url(self, url: str):
+        """Navigates to the specified URL"""
+        await self._page.goto(url)
+    
+    async def explore_page_dom(
+        self, 
+        depth: int = 0, 
+        visible_only: bool = True, 
+        max_depth: int = 10, 
+        max_children: int = 10
+    ) -> Optional[Dict]:
         """Returns the HTML structure of the current page"""
-        return await self._page.content()
+        body = await self._page.query_selector("body")
+        return await self._summarize_element(body, depth=depth, visible_only=visible_only, max_depth=max_depth, max_children=max_children)
 
-    async def explore_element_dom(self, selector: str):
+    async def explore_element_dom(
+        self, 
+        selector: str, 
+        depth: int = 0, 
+        visible_only: bool = True, 
+        max_depth: int = 10, 
+        max_children: int = 10
+    ) -> Optional[Dict]:
         """Returns the HTML structure of the element identified by the selector."""
         element = await self._page.query_selector(selector)
-        return await element.inner_html() if element else ""
+        return await self._summarize_element(element, depth=depth, visible_only=visible_only, max_depth=max_depth, max_children=max_children)
 
     async def wait_for_element(
         self,
@@ -139,16 +248,26 @@ class PlaywrightClient:
         """
         return await self._page.wait_for_selector(selector, timeout=timeout, state=state)
 
-    async def find_elements(self, selector: str) -> List[ElementHandle]:
+    async def find_elements(
+        self, 
+        selector: str,
+        max_depth: int = 10,
+        max_children: int = 10,
+        visible_only: bool = True
+    ) -> List[Dict]:
         """Finds elements on the page using the specified selector.
 
         Args:
             selector: CSS or XPath selector
+            max_depth: Maximum depth of the element tree to explore
+            max_children: Maximum number of children to explore per element
+            visible_only: Whether to only include visible elements
 
         Returns:
             List of found elements
         """
-        return await self._page.query_selector_all(selector)
+        elements = await self._page.query_selector_all(selector)
+        return [await self._summarize_element(element, max_depth=max_depth, max_children=max_children, visible_only=visible_only) for element in elements]
 
     async def click_on_element(self, selector: str, timeout: int = 30000):
         """Clicks on an element identified by the selector.
@@ -298,9 +417,18 @@ class PlaywrightClient:
             await self._page.keyboard.press(key)
 
 
-# import time
-# client = PlaywrightClient(browser_headless=False)
-# client.start()
-# client.get_page().goto("https://www.google.com")
-# time.sleep(10)
-# client.stop()
+
+
+# import asyncio
+# import json
+
+# async def example():
+#     client = PlaywrightClient(browser_headless=False)
+#     await client.start()
+#     await client.navigate_to_url("https://docs.astral.sh/uv/")
+#     page_dom = await client.explore_page_dom()
+#     print(json.dumps(page_dom, indent=4))
+#     await client.stop()
+
+# asyncio.run(example())
+    

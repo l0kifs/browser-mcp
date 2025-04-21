@@ -43,44 +43,82 @@ async def navigate_to_url(ctx: Context, url: str) -> str:
             Example: "Navigated to https://www.example.com"
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    await playwright_client.get_page().goto(url)
+    await playwright_client.navigate_to_url(url)
     return f"Navigated to {url}"
 
 
 @mcp.tool()
-async def explore_page_dom(ctx: Context) -> str:
-    """Retrieve the complete HTML structure of the current page.
+async def explore_page_dom(
+    ctx: Context,
+    max_depth: int = 10,
+    max_children: int = 10,
+    visible_only: bool = True
+) -> str:
+    """Retrieve a hierarchical representation of the page's DOM structure.
     
-    Used for analyzing page structure, debugging, or extracting information not easily accessible 
-    through selectors.
+    Used for analyzing page structure, debugging, or extracting information about the page layout.
     
     Args:
-        No arguments required.
+        max_depth (int): Maximum depth of the DOM tree to explore. Default: 10.
+            Higher values provide deeper exploration but may return larger results.
+        
+        max_children (int): Maximum number of children to include for each node. Default: 10.
+            Limits width of the DOM tree to prevent overwhelming results.
+        
+        visible_only (bool): Whether to include only visible elements. Default: True.
+            When True, hidden elements are excluded from the results.
     
     Returns:
-        str: The full HTML content of the current page.
-            Example: "<!DOCTYPE html><html><head>...</head><body>...</body></html>"
+        str: A hierarchical JSON representation of the page DOM with the following structure:
+            - "tag": HTML tag name
+            - "text": Text content (truncated if longer than 80 characters)
+            - "id": Element ID attribute if present
+            - "class": Element class attribute if present
+            - "type": Element type attribute if present
+            - "selector": CSS selector that uniquely identifies the element
+            - "children": Array of child elements with the same structure
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return await playwright_client.explore_page_dom()
+    return await playwright_client.explore_page_dom(max_depth=max_depth, max_children=max_children, visible_only=visible_only)
 
 
 @mcp.tool()
-async def explore_element_dom(ctx: Context, selector: str) -> str:
-    """Retrieve the HTML structure of a specific element on the page.
+async def explore_element_dom(
+    ctx: Context, 
+    selector: str,
+    max_depth: int = 10,
+    max_children: int = 10,
+    visible_only: bool = True
+) -> str:
+    """Retrieve a hierarchical representation of a specific element's DOM structure.
     
     Useful for examining a particular component or section of a page without the surrounding HTML.
     
     Args:
         selector (str): CSS or XPath selector identifying the element.
             Example: "#main-content", "//div[@class='header']", ".product-container"
+        
+        max_depth (int): Maximum depth of the DOM tree to explore. Default: 10.
+            Higher values provide deeper exploration but may return larger results.
+        
+        max_children (int): Maximum number of children to include for each node. Default: 10.
+            Limits width of the DOM tree to prevent overwhelming results.
+        
+        visible_only (bool): Whether to include only visible elements. Default: True.
+            When True, hidden elements are excluded from the results.
     
     Returns:
-        str: The inner HTML content of the selected element, or empty string if not found.
-            Example: "<div class='item'>Product details</div><button>Add to cart</button>"
+        str: A hierarchical JSON representation of the element's DOM with the following structure:
+            - "tag": HTML tag name
+            - "text": Text content (truncated if longer than 80 characters)
+            - "id": Element ID attribute if present
+            - "class": Element class attribute if present
+            - "type": Element type attribute if present
+            - "selector": CSS selector that uniquely identifies the element
+            - "children": Array of child elements with the same structure
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return await playwright_client.explore_element_dom(selector)
+    return await playwright_client.explore_element_dom(selector, max_depth=max_depth, max_children=max_children, visible_only=visible_only)
 
 
 @mcp.tool()
@@ -118,35 +156,44 @@ async def wait_for_element(
 
 
 @mcp.tool()
-async def find_elements(ctx: Context, selector: str) -> List[Dict]:
-    """Find all elements on the page matching a selector and return their content.
+async def find_elements(
+    ctx: Context, 
+    selector: str,
+    max_depth: int = 10,
+    max_children: int = 10,
+    visible_only: bool = True
+) -> List[Dict]:
+    """Find all elements on the page matching a selector and return their structured information.
     
     Useful for collecting multiple items, like products in a list, table rows, or menu items.
     
     Args:
         selector (str): CSS or XPath selector identifying the elements.
             Example: ".product-item", "//li[contains(@class, 'result')]", "ul.menu > li"
+        
+        max_depth (int): Maximum depth of the element tree to explore. Default: 10.
+            Higher values provide deeper exploration but may return larger results.
+        
+        max_children (int): Maximum number of children to include for each node. Default: 10.
+            Limits width of the DOM tree to prevent overwhelming results.
+        
+        visible_only (bool): Whether to include only visible elements. Default: True.
+            When True, hidden elements are excluded from the results.
     
     Returns:
-        List[Dict]: A list of dictionaries with the following keys for each found element:
-            - "text": The text content of the element
-            - "html": The inner HTML of the element
+        List[Dict]: A list of dictionaries with the following structure for each found element:
+            - "tag": HTML tag name
+            - "text": Text content (truncated if longer than 80 characters)
+            - "id": Element ID attribute if present
+            - "class": Element class attribute if present
+            - "type": Element type attribute if present
+            - "selector": CSS selector that uniquely identifies the element
+            - "children": Array of child elements with the same structure
             
-            Example: [
-                {"text": "Product 1", "html": "<span>Product 1</span><span>$19.99</span>"},
-                {"text": "Product 2", "html": "<span>Product 2</span><span>$24.99</span>"}
-            ]
             Returns an empty list if no elements are found.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    elements = await playwright_client.find_elements(selector)
-    # Convert ElementHandles to serializable dictionaries
-    result = []
-    for el in elements:
-        text = await el.text_content()
-        html = await el.inner_html()
-        result.append({"text": text, "html": html})
-    return result
+    return await playwright_client.find_elements(selector, max_depth=max_depth, max_children=max_children, visible_only=visible_only)
 
 
 @mcp.tool()
@@ -234,9 +281,12 @@ async def execute_js(ctx: Context, script: str, arg: Any = None) -> Any:
     
     Args:
         script (str): JavaScript code to execute in the page context.
-            Example: "return document.title", 
-                     "return Array.from(document.querySelectorAll('.price')).map(el => el.textContent)",
-                     "return window.localStorage.getItem('token')"
+            For best compatibility, use arrow function syntax:
+            Example: "() => document.title", 
+                     "() => Array.from(document.querySelectorAll('.price')).map(el => el.textContent)",
+                     "() => window.localStorage.getItem('token')"
+            
+            Simple return statements will be automatically wrapped in an arrow function.
         
         arg (Any, optional): Optional argument to pass to the script.
             This value will be serialized and can be accessed in the script as the first function parameter.
@@ -252,6 +302,11 @@ async def execute_js(ctx: Context, script: str, arg: Any = None) -> Any:
             Example: "Page Title", ["$10.99", "$24.99"], {"userId": 123, "name": "John"}
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
+    
+    # Auto-wrap simple return statements in an arrow function for convenience
+    if script.strip().startswith("return "):
+        script = f"() => {{ {script} }}"
+    
     return await playwright_client.execute_js(script, arg)
 
 
