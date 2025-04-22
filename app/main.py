@@ -16,7 +16,7 @@ class AppContext:
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
-    playwright_client = PlaywrightClient(browser_headless=False)
+    playwright_client = PlaywrightClient(browser_headless=True)
     await playwright_client.start()
     try:
         yield AppContext(playwright_client=playwright_client)
