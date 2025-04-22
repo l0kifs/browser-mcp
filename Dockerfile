@@ -18,16 +18,16 @@ WORKDIR /app
 COPY pyproject.toml .
 
 # Install Python dependencies using uv and pyproject.toml
-RUN uv pip install .
+RUN uv pip install . --system
 
 # Install Playwright browsers
 RUN playwright install --with-deps chromium
 
 # Copy only the app directory
-COPY app/ ./app/
+COPY app/ ./
 
 # Set environment variable for headless browser
 ENV BROWSER_HEADLESS=true
 
 # Start the MCP server
-CMD ["python", "-m", "app.main"] 
+CMD ["python", "-m", "main"] 
