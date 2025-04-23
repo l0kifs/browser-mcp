@@ -176,7 +176,9 @@ async def find_elements(
     selector: str,
     max_depth: int = 10,
     max_children: int = 10,
-    visible_only: bool = True
+    visible_only: bool = True,
+    limit: int = 10,
+    offset: int = 0
 ) -> List[Dict]:
     """Find all elements on the page matching a selector and return their structured information.
     
@@ -194,6 +196,12 @@ async def find_elements(
         
         visible_only (bool): Whether to include only visible elements. Default: True.
             When True, hidden elements are excluded from the results.
+            
+        limit (int): Maximum number of elements to return. Default: 10.
+            Use this to prevent context overflow when many elements match the selector.
+            
+        offset (int): Number of elements to skip (for pagination). Default: 0.
+            Example: 10 (to get the second page when limit is 10)
     
     Returns:
         List[Dict]: A list of dictionaries with the following structure for each found element:
@@ -208,7 +216,11 @@ async def find_elements(
             Returns an empty list if no elements are found.
     """
     playwright_client = ctx.request_context.lifespan_context.playwright_client
-    return await playwright_client.find_elements(selector, max_depth=max_depth, max_children=max_children, visible_only=visible_only)
+    all_elements = await playwright_client.find_elements(selector, max_depth=max_depth, max_children=max_children, visible_only=visible_only)
+    
+    # Apply pagination
+    paginated_elements = all_elements[offset:offset + limit] if all_elements else []
+    return paginated_elements
 
 
 @mcp.tool()
