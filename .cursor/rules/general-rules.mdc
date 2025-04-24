@@ -3,17 +3,4 @@ description:
 globs: 
 alwaysApply: true
 ---
-- when doing file manipulations like create, update, or delete use console command tool
-- when you fail to read full file content because it's too large, grep it for required content
 
-- to run Docker Compose use `docker compose` terminal command
-
-- when creating or updating mcp tool functions don't use Optional, Union, or | in parameters
-  Example:
-  ```python
-  @mcp.tool()
-  async def find_test_cases(project_id: int):  # Do
-
-  @mcp.tool()
-  async def find_test_cases(project_id: Optional[int]):  # Not do
-  ```
